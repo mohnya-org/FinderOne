@@ -13,7 +13,7 @@ enum MenuBarIconFactory {
         }
 
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Corral")!
+        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "FinderOne")!
             .withSymbolConfiguration(config)!
 
         image.isTemplate = true

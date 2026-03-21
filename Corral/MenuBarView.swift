@@ -87,7 +87,7 @@ private extension MenuBarView {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.blue)
 
-            Text("Corral")
+            Text("FinderOne")
                 .font(.system(size: 14, weight: .bold))
 
             Spacer()

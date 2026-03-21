@@ -31,10 +31,7 @@ FinderOne depends on the following macOS permissions.
 
 Accessibility permission is required to monitor Finder windows and interact with Finder's UI.
 
-On first launch, use one of the following items from the menu bar UI:
-
-- `Grant Accessibility Permission`
-- `Open Accessibility Settings`
+On first launch, use `Grant Accessibility Permission` from the menu bar UI.
 
 ### Automation / Apple Events
 
@@ -46,11 +43,31 @@ Because FinderOne sends AppleScript commands to Finder, macOS may prompt for Aut
 - `Merge Now`: Triggers an immediate manual merge
 - `Launch at Login`: Controls whether the app starts automatically at login
 - Permission guidance is shown when Accessibility is not granted
-- Recent log entries are displayed in the menu
+- Recent activity entries are displayed in the panel
 
 ## Build
 
 This repository is an Xcode project, not a Swift Package. Use `xcodebuild`, not `swift build`.
+
+For day-to-day use, prefer the included `Makefile`.
+
+```bash
+make build
+```
+
+Clean build:
+
+```bash
+make clean-build
+```
+
+Open the built app:
+
+```bash
+make run
+```
+
+If you want the raw Xcode command, `make clean-build` expands to:
 
 ```bash
 xcodebuild \
@@ -72,7 +89,7 @@ tmp/DerivedData/Build/Products/Debug/FinderOne.app
 After building:
 
 ```bash
-open tmp/DerivedData/Build/Products/Debug/FinderOne.app
+make run
 ```
 
 ## Project Structure
@@ -88,6 +105,7 @@ Corral/LoginItemManager.swift            Launch-at-login handling
 Corral/MenuBarView.swift                 Menu bar UI
 Corral/MenuBarIconFactory.swift          Custom menu bar icon
 Corral/Info.plist                        App bundle settings
+Makefile                                Build and run shortcuts
 ```
 
 ## Notes
@@ -95,6 +113,7 @@ Corral/Info.plist                        App bundle settings
 - If Accessibility permission is granted later in System Settings, opening the menu bar UI forces an immediate permission refresh.
 - The AppleScript logic tries both English and Japanese Finder menu names to tolerate localization differences.
 - `Launch at Login` is expected to work best when the app is placed in `/Applications`.
+- The menu bar UI uses a window-style panel rather than a plain NSMenu so it can support richer SwiftUI controls.
 
 ## Known Limitations
 
