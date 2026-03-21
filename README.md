@@ -19,12 +19,6 @@ No more cluttered desktops full of Finder windows.
 
 ## Installation
 
-### Download
-
-Download the latest release from the [Releases](https://github.com/Moomo/FinderOne/releases) page.
-
-### Build from Source
-
 > Requires Xcode 15+ and macOS 14+.
 
 ```bash
