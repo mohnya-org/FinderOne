@@ -8,6 +8,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appState.start()
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        appState.refreshPermission(prompt: false)
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         appState.stop()
     }
@@ -72,6 +76,7 @@ final class AppState: ObservableObject {
     )
 
     private var scheduledMerge: DispatchWorkItem?
+    private var permissionFollowUpTask: Task<Void, Never>?
 
     func start() {
         refreshPermission(prompt: false)
@@ -88,6 +93,7 @@ final class AppState: ObservableObject {
 
     func stop() {
         scheduledMerge?.cancel()
+        permissionFollowUpTask?.cancel()
         finderWindowMonitor.stop()
     }
 
@@ -104,10 +110,12 @@ final class AppState: ObservableObject {
 
     func requestAccessibilityPermission() {
         refreshPermission(prompt: true)
+        startPermissionFollowUpPolling()
     }
 
     func openAccessibilitySettings() {
         permissionManager.openSystemSettings()
+        startPermissionFollowUpPolling()
     }
 
     func mergeNow() {
@@ -135,6 +143,24 @@ final class AppState: ObservableObject {
         }
         scheduledMerge = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+    }
+
+    private func startPermissionFollowUpPolling() {
+        permissionFollowUpTask?.cancel()
+        permissionFollowUpTask = Task { [weak self] in
+            guard let self else { return }
+
+            // Allow enough time for the user to navigate System Settings and grant access.
+            for _ in 0..<120 {
+                try? await Task.sleep(for: .milliseconds(500))
+                if Task.isCancelled { return }
+
+                self.refreshPermission(prompt: false)
+                if self.accessibilityGranted {
+                    return
+                }
+            }
+        }
     }
 
     private func performMerge(trigger: String) async {
