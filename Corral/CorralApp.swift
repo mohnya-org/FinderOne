@@ -11,7 +11,7 @@ struct CorralApp: App {
         } label: {
             Image(nsImage: MenuBarIconFactory.image(for: appDelegate.appState.menuBarIconState))
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
         Settings {
             EmptyView()

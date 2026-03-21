@@ -12,47 +12,38 @@ enum MenuBarIconFactory {
         color.setStroke()
         color.setFill()
 
-        let backWindow = NSBezierPath(roundedRect: NSRect(x: 2, y: 8, width: 8, height: 6), xRadius: 1.5, yRadius: 1.5)
-        backWindow.lineWidth = 1.4
+        let backWindow = NSBezierPath(roundedRect: NSRect(x: 2.6, y: 5.0, width: 8.4, height: 7.2), xRadius: 1.8, yRadius: 1.8)
+        backWindow.lineWidth = 1.8
         backWindow.stroke()
 
-        let frontWindow = NSBezierPath(roundedRect: NSRect(x: 8, y: 4, width: 8, height: 6), xRadius: 1.5, yRadius: 1.5)
-        frontWindow.lineWidth = 1.4
+        let frontWindow = NSBezierPath(roundedRect: NSRect(x: 6.8, y: 6.8, width: 8.8, height: 7.6), xRadius: 1.9, yRadius: 1.9)
+        frontWindow.lineWidth = 1.8
         frontWindow.stroke()
 
-        let mergeArrow = NSBezierPath()
-        mergeArrow.lineWidth = 1.6
-        mergeArrow.lineCapStyle = .round
-        mergeArrow.move(to: NSPoint(x: 5, y: 5))
-        mergeArrow.line(to: NSPoint(x: 9.5, y: 5))
-        mergeArrow.line(to: NSPoint(x: 9.5, y: 7.3))
-        mergeArrow.stroke()
-
-        let arrowHead = NSBezierPath()
-        arrowHead.lineWidth = 1.6
-        arrowHead.lineCapStyle = .round
-        arrowHead.move(to: NSPoint(x: 8.1, y: 6.0))
-        arrowHead.line(to: NSPoint(x: 9.5, y: 7.4))
-        arrowHead.line(to: NSPoint(x: 10.9, y: 6.0))
-        arrowHead.stroke()
+        let topBar = NSBezierPath()
+        topBar.lineWidth = 1.8
+        topBar.lineCapStyle = .round
+        topBar.move(to: NSPoint(x: 8.6, y: 11.8))
+        topBar.line(to: NSPoint(x: 13.9, y: 11.8))
+        topBar.stroke()
 
         switch state {
         case .active:
             break
         case .paused:
-            let pauseLeft = NSBezierPath(roundedRect: NSRect(x: 5.2, y: 1.5, width: 1.8, height: 4.2), xRadius: 0.6, yRadius: 0.6)
-            let pauseRight = NSBezierPath(roundedRect: NSRect(x: 8.3, y: 1.5, width: 1.8, height: 4.2), xRadius: 0.6, yRadius: 0.6)
+            let pauseLeft = NSBezierPath(roundedRect: NSRect(x: 6.1, y: 0.8, width: 1.9, height: 3.8), xRadius: 0.7, yRadius: 0.7)
+            let pauseRight = NSBezierPath(roundedRect: NSRect(x: 10.0, y: 0.8, width: 1.9, height: 3.8), xRadius: 0.7, yRadius: 0.7)
             pauseLeft.fill()
             pauseRight.fill()
         case .warning:
-            let dot = NSBezierPath(ovalIn: NSRect(x: 7.4, y: 1.2, width: 1.8, height: 1.8))
+            let dot = NSBezierPath(ovalIn: NSRect(x: 8.0, y: 0.8, width: 2.0, height: 2.0))
             dot.fill()
 
             let stem = NSBezierPath()
-            stem.lineWidth = 1.7
+            stem.lineWidth = 1.8
             stem.lineCapStyle = .round
-            stem.move(to: NSPoint(x: 8.3, y: 3.9))
-            stem.line(to: NSPoint(x: 8.3, y: 7.0))
+            stem.move(to: NSPoint(x: 9.0, y: 4.2))
+            stem.line(to: NSPoint(x: 9.0, y: 8.0))
             stem.stroke()
         }
 

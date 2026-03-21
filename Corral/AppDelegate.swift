@@ -36,6 +36,7 @@ final class AppState: ObservableObject {
     @Published var isMergingNow = false
     @Published var statusText = "Starting up..."
     @Published private(set) var logs: [String] = []
+    @Published private(set) var launchAtLoginHint: String?
 
     var menuBarIconState: MenuBarIconState {
         if !accessibilityGranted {
@@ -82,6 +83,7 @@ final class AppState: ObservableObject {
         refreshPermission(prompt: false)
         loginItemManager.refreshStatus()
         launchAtLogin = loginItemManager.isEnabled
+        launchAtLoginHint = loginItemManager.unsupportedReason
         statusText = "Waiting for Finder windows..."
 
         if accessibilityGranted && isEnabled {
@@ -99,6 +101,7 @@ final class AppState: ObservableObject {
 
     func refreshPermission(prompt: Bool) {
         accessibilityGranted = permissionManager.refresh(prompt: prompt)
+        launchAtLoginHint = loginItemManager.unsupportedReason
         if accessibilityGranted {
             if isEnabled {
                 finderWindowMonitor.start()
@@ -127,9 +130,11 @@ final class AppState: ObservableObject {
         do {
             try loginItemManager.setEnabled(enabled)
             launchAtLogin = loginItemManager.isEnabled
+            launchAtLoginHint = loginItemManager.unsupportedReason
             log(enabled ? "Launch at login enabled." : "Launch at login disabled.")
         } catch {
             launchAtLogin = loginItemManager.isEnabled
+            launchAtLoginHint = loginItemManager.unsupportedReason
             log("Failed to update launch at login: \(error.localizedDescription)")
         }
     }
