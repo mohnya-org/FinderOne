@@ -1,73 +1,71 @@
 # FinderOne
 
-FinderOne is a macOS menu bar app that automatically merges newly opened Finder windows into tabs in an existing Finder window.
+A lightweight macOS menu bar app that automatically merges Finder windows into a single tabbed window.
 
-The project codename is `Corral`, but the shipping app name is `FinderOne`.
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![Swift](https://img.shields.io/badge/Swift-5.9-orange) ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
-## Overview
+## What It Does
 
-- Built with Swift and SwiftUI
-- Supports macOS 14 and later
-- Runs as a menu bar app
-- Monitors the number of Finder windows
-- Detects newly opened Finder windows
-- Waits about 0.5 seconds, then triggers Finder's `Merge All Windows` command via AppleScript
-- Supports a launch-at-login toggle
+Every time you open a new Finder window, FinderOne detects it and merges all Finder windows into one tabbed window — automatically.
 
-## How It Works
+No more cluttered desktops full of Finder windows.
 
-1. FinderOne monitors Finder window count using the Accessibility API.
-2. When the window count increases, it treats that as a newly opened Finder window.
-3. After a short delay, it runs Finder's `Merge All Windows` command through AppleScript.
-4. Finder merges the windows into a single tabbed window using its built-in behavior.
+## Features
 
-If Finder has fewer than two windows, FinderOne does nothing.
+- Automatic merging of new Finder windows into tabs
+- Manual "Merge Now" for on-demand merging
+- Launch at Login support
+- Minimal resource usage — sits quietly in your menu bar
 
-## Permissions
+## Installation
 
-FinderOne depends on the following macOS permissions.
+### Download
 
-### Accessibility
+Download the latest release from the [Releases](https://github.com/Moomo/FinderOne/releases) page.
 
-Accessibility permission is required to monitor Finder windows and interact with Finder's UI.
+### Build from Source
 
-On first launch, use `Grant Accessibility Permission` from the menu bar UI.
-
-### Automation / Apple Events
-
-Because FinderOne sends AppleScript commands to Finder, macOS may prompt for Automation permission the first time a merge is attempted.
-
-## Menu Bar UI
-
-- `Automatic merge`: Enables or disables automatic merging
-- `Merge Now`: Triggers an immediate manual merge
-- `Launch at Login`: Controls whether the app starts automatically at login
-- Permission guidance is shown when Accessibility is not granted
-- Recent activity entries are displayed in the panel
-
-## Build
-
-This repository is an Xcode project, not a Swift Package. Use `xcodebuild`, not `swift build`.
-
-For day-to-day use, prefer the included `Makefile`.
+> Requires Xcode 15+ and macOS 14+.
 
 ```bash
+git clone https://github.com/Moomo/FinderOne.git
+cd FinderOne
 make build
-```
-
-Clean build:
-
-```bash
-make clean-build
-```
-
-Open the built app:
-
-```bash
 make run
 ```
 
-If you want the raw Xcode command, `make clean-build` expands to:
+## Setup
+
+1. Launch FinderOne — it appears in your menu bar
+2. Click the menu bar icon and grant **Accessibility** permission when prompted
+3. That's it — new Finder windows will be automatically merged into tabs
+
+### Permissions
+
+| Permission | Why |
+|---|---|
+| **Accessibility** | Required to monitor Finder windows |
+| **Automation** | macOS will prompt on first merge (AppleScript → Finder) |
+
+## How It Works
+
+1. Monitors Finder window count via the Accessibility API
+2. When a new window is detected, waits ~0.5s for it to finish loading
+3. Runs Finder's built-in `Merge All Windows` command via AppleScript
+4. If fewer than 2 windows exist, does nothing
+
+## Building
+
+This is an Xcode project (not a Swift Package).
+
+```bash
+make build        # Build
+make clean-build  # Clean + build
+make run          # Build and open the app
+```
+
+<details>
+<summary>Raw xcodebuild command</summary>
 
 ```bash
 xcodebuild \
@@ -78,45 +76,32 @@ xcodebuild \
   build CODE_SIGNING_ALLOWED=NO
 ```
 
-Build output:
-
-```text
-tmp/DerivedData/Build/Products/Debug/FinderOne.app
-```
-
-## Run
-
-After building:
-
-```bash
-make run
-```
+</details>
 
 ## Project Structure
 
-```text
-Corral.xcodeproj/                        Xcode project
-Corral/CorralApp.swift                   App entry point
-Corral/AppDelegate.swift                 App state and orchestration
-Corral/FinderWindowMonitor.swift         Finder window monitoring
-Corral/AppleScriptRunner.swift           Finder merge execution
-Corral/AccessibilityPermissionManager.swift Permission handling
-Corral/LoginItemManager.swift            Launch-at-login handling
-Corral/MenuBarView.swift                 Menu bar UI
-Corral/MenuBarIconFactory.swift          Custom menu bar icon
-Corral/Info.plist                        App bundle settings
-Makefile                                Build and run shortcuts
 ```
-
-## Notes
-
-- If Accessibility permission is granted later in System Settings, opening the menu bar UI forces an immediate permission refresh.
-- The AppleScript logic tries both English and Japanese Finder menu names to tolerate localization differences.
-- `Launch at Login` is expected to work best when the app is placed in `/Applications`.
-- The menu bar UI uses a window-style panel rather than a plain NSMenu so it can support richer SwiftUI controls.
+Corral/
+├── CorralApp.swift                    # App entry point
+├── AppDelegate.swift                  # App state & orchestration
+├── MenuBarView.swift                  # Menu bar UI
+├── MenuBarIconFactory.swift           # Menu bar icon
+├── FinderWindowMonitor.swift          # Finder window monitoring
+├── AppleScriptRunner.swift            # Finder merge via AppleScript
+├── AccessibilityPermissionManager.swift
+└── LoginItemManager.swift
+```
 
 ## Known Limitations
 
-- Monitoring is currently polling-based rather than event-driven.
-- Finder's `Merge All Windows` command may be temporarily unavailable depending on Finder state.
-- Because merging relies on AppleScript and Finder UI automation, behavior may be affected by future macOS or Finder changes.
+- Monitoring is polling-based, not event-driven
+- Finder's `Merge All Windows` may be temporarily unavailable depending on Finder state
+- Behavior may be affected by future macOS or Finder changes
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+## License
+
+MIT
