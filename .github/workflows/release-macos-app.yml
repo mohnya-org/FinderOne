@@ -138,12 +138,21 @@ jobs:
         env:
           VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
-          chmod +x ./scripts/build-app.sh
-          APP_VERSION="$VERSION" \
-          BUILD_NUMBER="${GITHUB_RUN_NUMBER}" \
-          BUILD_ARCH=arm64 \
-          CODE_SIGNING_ALLOWED=NO \
-          ./scripts/build-app.sh
+          set -euo pipefail
+          mkdir -p dist
+          xcodebuild \
+            -project Corral.xcodeproj \
+            -scheme Corral \
+            -configuration Release \
+            -derivedDataPath tmp/DerivedData \
+            -arch arm64 \
+            build \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            MARKETING_VERSION="$VERSION"
+          rm -rf dist/FinderOne.app
+          cp -R tmp/DerivedData/Build/Products/Release/FinderOne.app dist/FinderOne.app
 
       - name: Verify app architecture
         run: |

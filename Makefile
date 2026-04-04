@@ -8,9 +8,18 @@ APP_PATH := $(DIST_DIR)/FinderOne.app
 .PHONY: build clean-build run clean debug-build
 
 build:
-	CONFIGURATION=$(CONFIGURATION) \
-	DERIVED_DATA=$(DERIVED_DATA) \
-	./scripts/build-app.sh
+	mkdir -p $(DIST_DIR)
+	xcodebuild \
+		-project $(PROJECT) \
+		-scheme $(SCHEME) \
+		-configuration $(CONFIGURATION) \
+		-derivedDataPath $(DERIVED_DATA) \
+		-arch arm64 \
+		build \
+		ONLY_ACTIVE_ARCH=YES \
+		CODE_SIGNING_ALLOWED=NO
+	rm -rf $(APP_PATH)
+	cp -R $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)/FinderOne.app $(APP_PATH)
 
 clean-build:
 	xcodebuild \
@@ -19,14 +28,21 @@ clean-build:
 		-configuration $(CONFIGURATION) \
 		-derivedDataPath $(DERIVED_DATA) \
 		clean CODE_SIGNING_ALLOWED=NO
-	CONFIGURATION=$(CONFIGURATION) \
-	DERIVED_DATA=$(DERIVED_DATA) \
-	./scripts/build-app.sh
+	$(MAKE) build
 
 debug-build:
-	CONFIGURATION=Debug \
-	DERIVED_DATA=$(DERIVED_DATA) \
-	./scripts/build-app.sh
+	mkdir -p $(DIST_DIR)
+	xcodebuild \
+		-project $(PROJECT) \
+		-scheme $(SCHEME) \
+		-configuration Debug \
+		-derivedDataPath $(DERIVED_DATA) \
+		-arch arm64 \
+		build \
+		ONLY_ACTIVE_ARCH=YES \
+		CODE_SIGNING_ALLOWED=NO
+	rm -rf $(APP_PATH)
+	cp -R $(DERIVED_DATA)/Build/Products/Debug/FinderOne.app $(APP_PATH)
 
 run:
 	open $(APP_PATH)

@@ -75,15 +75,7 @@ xcodebuild \
 
 ### Release-style build
 
-The repository now includes a CI-friendly build script at `scripts/build-app.sh`.
-
-```bash
-./scripts/build-app.sh
-APP_VERSION=1.2.3 BUILD_NUMBER=12 ./scripts/build-app.sh
-CONFIGURATION=Debug ./scripts/build-app.sh
-```
-
-The script writes the built app bundle to `dist/FinderOne.app`, matching the release workflow layout.
+`make build` writes the app bundle to `dist/FinderOne.app`, matching the release workflow layout.
 
 ## Project Structure
 
