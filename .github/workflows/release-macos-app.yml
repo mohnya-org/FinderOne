@@ -2,13 +2,13 @@ name: Release macOS App
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version without the v prefix"
-        required: true
+        description: "Release version without the v prefix. Omit to use MARKETING_VERSION from the Xcode project."
+        required: false
 
 permissions:
   contents: write
@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Resolve release metadata
         env:
@@ -31,11 +33,13 @@ jobs:
 
           if [[ -n "${INPUT_VERSION:-}" ]]; then
             VERSION="$INPUT_VERSION"
-            TAG="v$VERSION"
           else
-            TAG="${GITHUB_REF_NAME}"
-            VERSION="${TAG#v}"
+            VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' Corral.xcodeproj/project.pbxproj | head -n 1)"
           fi
+
+          [[ -n "$VERSION" ]] || { echo "Could not resolve app version" >&2; exit 1; }
+
+          TAG="v$VERSION"
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
@@ -44,7 +48,36 @@ jobs:
           echo "ZIP_PATH=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip" >> "$GITHUB_ENV"
           echo "CHECKSUM_PATH=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip.sha256" >> "$GITHUB_ENV"
 
+      - name: Create release tag if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          git fetch --tags
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            EXISTING_SHA="$(git rev-list -n 1 "$TAG")"
+            CURRENT_SHA="$(git rev-parse HEAD)"
+
+            if [[ "$EXISTING_SHA" == "$CURRENT_SHA" ]]; then
+              echo "RELEASE_SHOULD_RUN=false" >> "$GITHUB_ENV"
+              echo "Tag $TAG already exists for this commit. Skipping release."
+              exit 0
+            fi
+
+            echo "Tag $TAG already exists on another commit ($EXISTING_SHA). Bump MARKETING_VERSION before releasing." >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "RELEASE_SHOULD_RUN=true" >> "$GITHUB_ENV"
+
       - name: Import Developer ID certificate
+        if: env.RELEASE_SHOULD_RUN == 'true'
         env:
           APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
@@ -81,6 +114,7 @@ jobs:
           echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
 
       - name: Build app bundle
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           chmod +x ./scripts/build-app.sh
           APP_VERSION="$VERSION" \
@@ -90,6 +124,7 @@ jobs:
           ./scripts/build-app.sh
 
       - name: Verify app architecture
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           APP_BINARY="dist/FinderOne.app/Contents/MacOS/FinderOne"
@@ -98,12 +133,14 @@ jobs:
           echo "$ARCH_INFO" | grep -q "arm64"
 
       - name: Sign app bundle
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           codesign --force --deep --options runtime --timestamp --sign "$SIGNING_IDENTITY" "dist/FinderOne.app"
           codesign --verify --deep --strict --verbose=2 "dist/FinderOne.app"
 
       - name: Prepare App Store Connect API key
+        if: env.RELEASE_SHOULD_RUN == 'true'
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
         run: |
@@ -114,12 +151,14 @@ jobs:
           echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Create signed archive for notarization
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           mkdir -p dist
           ditto -c -k --keepParent "dist/FinderOne.app" "$ZIP_PATH"
 
       - name: Notarize app archive
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           xcrun notarytool submit "$ZIP_PATH" \
@@ -129,12 +168,14 @@ jobs:
             --wait
 
       - name: Staple notarization ticket
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           xcrun stapler staple "dist/FinderOne.app"
           xcrun stapler validate "dist/FinderOne.app"
 
       - name: Recreate release archive and checksum
+        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           rm -f "$ZIP_PATH" "$CHECKSUM_PATH"
@@ -142,6 +183,7 @@ jobs:
           shasum -a 256 "$ZIP_PATH" > "$CHECKSUM_PATH"
 
       - name: Create or update GitHub Release
+        if: env.RELEASE_SHOULD_RUN == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -155,7 +197,7 @@ jobs:
           fi
 
       - name: Cleanup signing keychain
-        if: always()
+        if: always() && env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set +e
 
