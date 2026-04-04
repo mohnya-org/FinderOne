@@ -1,18 +1,16 @@
 PROJECT := Corral.xcodeproj
 SCHEME := Corral
-CONFIGURATION := Debug
+CONFIGURATION := Release
 DERIVED_DATA := tmp/DerivedData
-APP_PATH := $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)/FinderOne.app
+DIST_DIR := dist
+APP_PATH := $(DIST_DIR)/FinderOne.app
 
-.PHONY: build clean-build run clean
+.PHONY: build clean-build run clean debug-build
 
 build:
-	xcodebuild \
-		-project $(PROJECT) \
-		-scheme $(SCHEME) \
-		-configuration $(CONFIGURATION) \
-		-derivedDataPath $(DERIVED_DATA) \
-		build CODE_SIGNING_ALLOWED=NO
+	CONFIGURATION=$(CONFIGURATION) \
+	DERIVED_DATA=$(DERIVED_DATA) \
+	./scripts/build-app.sh
 
 clean-build:
 	xcodebuild \
@@ -20,7 +18,15 @@ clean-build:
 		-scheme $(SCHEME) \
 		-configuration $(CONFIGURATION) \
 		-derivedDataPath $(DERIVED_DATA) \
-		clean build CODE_SIGNING_ALLOWED=NO
+		clean CODE_SIGNING_ALLOWED=NO
+	CONFIGURATION=$(CONFIGURATION) \
+	DERIVED_DATA=$(DERIVED_DATA) \
+	./scripts/build-app.sh
+
+debug-build:
+	CONFIGURATION=Debug \
+	DERIVED_DATA=$(DERIVED_DATA) \
+	./scripts/build-app.sh
 
 run:
 	open $(APP_PATH)

@@ -54,6 +54,7 @@ This is an Xcode project (not a Swift Package).
 
 ```bash
 make build        # Build
+make debug-build  # Debug build
 make clean-build  # Clean + build
 make run          # Build and open the app
 ```
@@ -71,6 +72,18 @@ xcodebuild \
 ```
 
 </details>
+
+### Release-style build
+
+The repository now includes a CI-friendly build script at `scripts/build-app.sh`.
+
+```bash
+./scripts/build-app.sh
+APP_VERSION=1.2.3 BUILD_NUMBER=12 ./scripts/build-app.sh
+CONFIGURATION=Debug ./scripts/build-app.sh
+```
+
+The script writes the built app bundle to `dist/FinderOne.app`, matching the release workflow layout.
 
 ## Project Structure
 
