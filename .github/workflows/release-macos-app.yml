@@ -25,6 +25,7 @@ jobs:
       zip_path: ${{ steps.metadata.outputs.zip_path }}
       checksum_path: ${{ steps.metadata.outputs.checksum_path }}
       should_release: ${{ steps.tag.outputs.should_release }}
+      skip_reason: ${{ steps.tag.outputs.skip_reason }}
 
     steps:
       - name: Check out repository
@@ -73,12 +74,15 @@ jobs:
 
             if [[ "$EXISTING_SHA" == "$CURRENT_SHA" ]]; then
               echo "should_release=false" >> "$GITHUB_OUTPUT"
+              echo "skip_reason=tag already exists for this commit" >> "$GITHUB_OUTPUT"
               echo "Tag $TAG already exists for this commit. Skipping release."
               exit 0
             fi
 
-            echo "Tag $TAG already exists on another commit ($EXISTING_SHA). Bump MARKETING_VERSION before releasing." >&2
-            exit 1
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=tag already exists on another commit" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG already exists on another commit ($EXISTING_SHA). Skipping release."
+            exit 0
           fi
 
           git config user.name "github-actions[bot]"
@@ -86,6 +90,12 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
           echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Report skipped release
+        if: steps.tag.outputs.should_release != 'true'
+        run: |
+          echo "Release skipped: ${{ steps.tag.outputs.skip_reason }}"
 
   release:
     needs: prepare-release
@@ -138,12 +148,21 @@ jobs:
         env:
           VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
-          chmod +x ./scripts/build-app.sh
-          APP_VERSION="$VERSION" \
-          BUILD_NUMBER="${GITHUB_RUN_NUMBER}" \
-          BUILD_ARCH=arm64 \
-          CODE_SIGNING_ALLOWED=NO \
-          ./scripts/build-app.sh
+          set -euo pipefail
+          mkdir -p dist
+          xcodebuild \
+            -project Corral.xcodeproj \
+            -scheme Corral \
+            -configuration Release \
+            -derivedDataPath tmp/DerivedData \
+            -arch arm64 \
+            build \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            MARKETING_VERSION="$VERSION"
+          rm -rf dist/FinderOne.app
+          cp -R tmp/DerivedData/Build/Products/Release/FinderOne.app dist/FinderOne.app
 
       - name: Verify app architecture
         run: |
