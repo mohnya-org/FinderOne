@@ -14,10 +14,17 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  prepare-release:
     runs-on:
       - self-hosted
       - macOS
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      zip_name: ${{ steps.metadata.outputs.zip_name }}
+      zip_path: ${{ steps.metadata.outputs.zip_path }}
+      checksum_path: ${{ steps.metadata.outputs.checksum_path }}
+      should_release: ${{ steps.tag.outputs.should_release }}
 
     steps:
       - name: Check out repository
@@ -26,6 +33,7 @@ jobs:
           fetch-depth: 0
 
       - name: Resolve release metadata
+        id: metadata
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
@@ -41,16 +49,19 @@ jobs:
 
           TAG="v$VERSION"
 
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "APP_NAME=FinderOne" >> "$GITHUB_ENV"
-          echo "ZIP_NAME=FinderOne-$VERSION-macOS.zip" >> "$GITHUB_ENV"
-          echo "ZIP_PATH=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip" >> "$GITHUB_ENV"
-          echo "CHECKSUM_PATH=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip.sha256" >> "$GITHUB_ENV"
+          {
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+            echo "zip_name=FinderOne-$VERSION-macOS.zip"
+            echo "zip_path=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip"
+            echo "checksum_path=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip.sha256"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create release tag if missing
+        id: tag
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.metadata.outputs.tag }}
         run: |
           set -euo pipefail
 
@@ -61,7 +72,7 @@ jobs:
             CURRENT_SHA="$(git rev-parse HEAD)"
 
             if [[ "$EXISTING_SHA" == "$CURRENT_SHA" ]]; then
-              echo "RELEASE_SHOULD_RUN=false" >> "$GITHUB_ENV"
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
               echo "Tag $TAG already exists for this commit. Skipping release."
               exit 0
             fi
@@ -74,10 +85,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "$TAG"
           git push origin "$TAG"
-          echo "RELEASE_SHOULD_RUN=true" >> "$GITHUB_ENV"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: prepare-release
+    if: needs.prepare-release.outputs.should_release == 'true'
+    runs-on:
+      - self-hosted
+      - macOS
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
       - name: Import Developer ID certificate
-        if: env.RELEASE_SHOULD_RUN == 'true'
         env:
           APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
@@ -114,7 +135,8 @@ jobs:
           echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
 
       - name: Build app bundle
-        if: env.RELEASE_SHOULD_RUN == 'true'
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
           chmod +x ./scripts/build-app.sh
           APP_VERSION="$VERSION" \
@@ -124,7 +146,6 @@ jobs:
           ./scripts/build-app.sh
 
       - name: Verify app architecture
-        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           APP_BINARY="dist/FinderOne.app/Contents/MacOS/FinderOne"
@@ -133,14 +154,12 @@ jobs:
           echo "$ARCH_INFO" | grep -q "arm64"
 
       - name: Sign app bundle
-        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           codesign --force --deep --options runtime --timestamp --sign "$SIGNING_IDENTITY" "dist/FinderOne.app"
           codesign --verify --deep --strict --verbose=2 "dist/FinderOne.app"
 
       - name: Prepare App Store Connect API key
-        if: env.RELEASE_SHOULD_RUN == 'true'
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
         run: |
@@ -151,14 +170,16 @@ jobs:
           echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Create signed archive for notarization
-        if: env.RELEASE_SHOULD_RUN == 'true'
+        env:
+          ZIP_PATH: ${{ needs.prepare-release.outputs.zip_path }}
         run: |
           set -euo pipefail
           mkdir -p dist
           ditto -c -k --keepParent "dist/FinderOne.app" "$ZIP_PATH"
 
       - name: Notarize app archive
-        if: env.RELEASE_SHOULD_RUN == 'true'
+        env:
+          ZIP_PATH: ${{ needs.prepare-release.outputs.zip_path }}
         run: |
           set -euo pipefail
           xcrun notarytool submit "$ZIP_PATH" \
@@ -168,14 +189,15 @@ jobs:
             --wait
 
       - name: Staple notarization ticket
-        if: env.RELEASE_SHOULD_RUN == 'true'
         run: |
           set -euo pipefail
           xcrun stapler staple "dist/FinderOne.app"
           xcrun stapler validate "dist/FinderOne.app"
 
       - name: Recreate release archive and checksum
-        if: env.RELEASE_SHOULD_RUN == 'true'
+        env:
+          ZIP_PATH: ${{ needs.prepare-release.outputs.zip_path }}
+          CHECKSUM_PATH: ${{ needs.prepare-release.outputs.checksum_path }}
         run: |
           set -euo pipefail
           rm -f "$ZIP_PATH" "$CHECKSUM_PATH"
@@ -183,9 +205,11 @@ jobs:
           shasum -a 256 "$ZIP_PATH" > "$CHECKSUM_PATH"
 
       - name: Create or update GitHub Release
-        if: env.RELEASE_SHOULD_RUN == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          ZIP_PATH: ${{ needs.prepare-release.outputs.zip_path }}
+          CHECKSUM_PATH: ${{ needs.prepare-release.outputs.checksum_path }}
         run: |
           set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -197,7 +221,7 @@ jobs:
           fi
 
       - name: Cleanup signing keychain
-        if: always() && env.RELEASE_SHOULD_RUN == 'true'
+        if: always()
         run: |
           set +e
 
