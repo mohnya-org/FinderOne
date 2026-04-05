@@ -142,9 +142,19 @@ final class AppState: ObservableObject {
     private func scheduleAutomaticMerge() {
         guard isEnabled else { return }
         scheduledMerge?.cancel()
+        let preferredTabTitle = appleScriptRunner.frontFinderWindowTitle()
+        let preferredTargetPath = appleScriptRunner.frontFinderWindowTargetPath()
+        let preferredDocumentToken = appleScriptRunner.frontFinderWindowDocumentToken()
 
         let workItem = DispatchWorkItem { [weak self] in
-            Task { await self?.performMerge(trigger: "automatic") }
+            Task {
+                await self?.performMerge(
+                    trigger: "automatic",
+                    preferredTabTitle: preferredTabTitle,
+                    preferredTargetPath: preferredTargetPath,
+                    preferredDocumentToken: preferredDocumentToken
+                )
+            }
         }
         scheduledMerge = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
@@ -168,7 +178,12 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func performMerge(trigger: String) async {
+    private func performMerge(
+        trigger: String,
+        preferredTabTitle: String? = nil,
+        preferredTargetPath: String? = nil,
+        preferredDocumentToken: String? = nil
+    ) async {
         guard !isMergingNow else { return }
         guard accessibilityGranted else {
             log("Skipping merge because Accessibility permission is not granted.")
@@ -179,7 +194,11 @@ final class AppState: ObservableObject {
         defer { isMergingNow = false }
 
         do {
-            let result = try appleScriptRunner.mergeFinderWindows()
+            let result = try appleScriptRunner.mergeFinderWindows(
+                preferredTabTitle: preferredTabTitle,
+                preferredTargetPath: preferredTargetPath,
+                preferredDocumentToken: preferredDocumentToken
+            )
             switch result {
             case .merged(let count):
                 log("Merged Finder windows via \(trigger) trigger. Remaining windows: \(count).")

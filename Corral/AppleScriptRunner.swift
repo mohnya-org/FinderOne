@@ -23,10 +23,52 @@ struct AppleScriptRunner {
         }
     }
 
-    func mergeFinderWindows() throws -> MergeResult {
+    func mergeFinderWindows(
+        preferredTabTitle: String? = nil,
+        preferredTargetPath: String? = nil,
+        preferredDocumentToken: String? = nil
+    ) throws -> MergeResult {
+        let preferredTabTitleLiteral = appleScriptStringLiteral(preferredTabTitle)
+        let preferredTargetPathLiteral = appleScriptStringLiteral(preferredTargetPath)
+        let preferredDocumentTokenLiteral = appleScriptStringLiteral(preferredDocumentToken)
         let script = """
         set mergeMenuNames to {"Merge All Windows", "すべてのウインドウを結合", "すべてのウィンドウを結合"}
         set windowMenuNames to {"Window", "ウインドウ", "ウィンドウ"}
+        set preferredTabTitle to \(preferredTabTitleLiteral)
+        set preferredTargetPath to \(preferredTargetPathLiteral)
+        set preferredDocumentToken to \(preferredDocumentTokenLiteral)
+
+        on finderFrontWindowTitle()
+            tell application "Finder"
+                try
+                    return name of front Finder window
+                on error
+                    return missing value
+                end try
+            end tell
+        end finderFrontWindowTitle
+
+        on finderFrontWindowTargetPath()
+            tell application "Finder"
+                try
+                    return POSIX path of (target of front Finder window as alias)
+                on error
+                    return missing value
+                end try
+            end tell
+        end finderFrontWindowTargetPath
+
+        on finderFrontWindowDocumentToken()
+            tell application "System Events"
+                tell process "Finder"
+                    try
+                        return value of attribute "AXDocument" of front window
+                    on error
+                        return missing value
+                    end try
+                end tell
+            end tell
+        end finderFrontWindowDocumentToken
 
         tell application "Finder"
             if not running then
@@ -73,6 +115,64 @@ struct AppleScriptRunner {
 
         delay 0.2
 
+        tell application "System Events"
+            tell process "Finder"
+                try
+                    tell front window
+                        if exists tab group 1 then
+                            set tabButtons to radio buttons of tab group 1
+
+                            if preferredTargetPath is not missing value and preferredTargetPath is not "" then
+                                repeat with candidateButton in tabButtons
+                                    try
+                                        click candidateButton
+                                        delay 0.05
+                                        if finderFrontWindowTargetPath() is preferredTargetPath then
+                                            error number -128
+                                        end if
+                                    end try
+                                end repeat
+                            end if
+
+                            if preferredDocumentToken is not missing value and preferredDocumentToken is not "" then
+                                repeat with candidateButton in tabButtons
+                                    try
+                                        click candidateButton
+                                        delay 0.05
+                                        if finderFrontWindowDocumentToken() is preferredDocumentToken then
+                                            error number -128
+                                        end if
+                                    end try
+                                end repeat
+                            end if
+
+                            if preferredTabTitle is not missing value and preferredTabTitle is not "" then
+                                repeat with candidateButton in tabButtons
+                                    try
+                                        if title of candidateButton is preferredTabTitle then
+                                            click candidateButton
+                                            error number -128
+                                        end if
+                                    end try
+                                end repeat
+                            end if
+
+                            if (count of tabButtons) > 0 then
+                                -- Final fallback for windows that expose neither target nor AXDocument.
+                                click item -1 of tabButtons
+                            end if
+                        end if
+                    end tell
+                on error errMsg number errNum
+                    if errNum is not -128 then
+                        -- Ignore focus restoration failures and keep the merge successful.
+                    end if
+                end try
+            end tell
+        end tell
+
+        delay 0.1
+
         tell application "Finder"
             return "merged|" & (count of Finder windows)
         end tell
@@ -102,5 +202,85 @@ struct AppleScriptRunner {
         }
 
         throw ScriptError.malformedResult
+    }
+
+    func frontFinderWindowTitle() -> String? {
+        executeOptionalStringScript("""
+        tell application "Finder"
+            if not running then
+                return ""
+            end if
+
+            try
+                return name of front Finder window
+            on error
+                return ""
+            end try
+        end tell
+        """)
+    }
+
+    func frontFinderWindowTargetPath() -> String? {
+        executeOptionalStringScript("""
+        tell application "Finder"
+            if not running then
+                return ""
+            end if
+
+            try
+                return POSIX path of (target of front Finder window as alias)
+            on error
+                return ""
+            end try
+        end tell
+        """)
+    }
+
+    func frontFinderWindowDocumentToken() -> String? {
+        executeOptionalStringScript("""
+        tell application "System Events"
+            if not (exists process "Finder") then
+                return ""
+            end if
+
+            tell process "Finder"
+                try
+                    return value of attribute "AXDocument" of front window
+                on error
+                    return ""
+                end try
+            end tell
+        end tell
+        """)
+    }
+
+    private func appleScriptStringLiteral(_ value: String?) -> String {
+        guard let value, !value.isEmpty else {
+            return "missing value"
+        }
+
+        let escapedValue = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+
+        return "\"\(escapedValue)\""
+    }
+
+    private func executeOptionalStringScript(_ source: String) -> String? {
+        var errorInfo: NSDictionary?
+        guard let appleScript = NSAppleScript(source: source) else {
+            return nil
+        }
+
+        let resultDescriptor = appleScript.executeAndReturnError(&errorInfo)
+        if errorInfo != nil {
+            return nil
+        }
+
+        guard let value = resultDescriptor.stringValue, !value.isEmpty else {
+            return nil
+        }
+
+        return value
     }
 }
