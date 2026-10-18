@@ -150,3 +150,15 @@ GitHub Actions の concurrency により、短時間にマージが続くと待�
 ローカルで有効にするには、SPM の build-app.sh に `SPARKLE_PUBLIC_ED_KEY` を渡すか、
 FinderOne のビルド済み Info.plist の `SUPublicEDKey` に同じ公開鍵を設定してから署名します。
 既存の自動更新未対応版からは、最初の対応版だけ手動でインストールする必要があります。
+
+### Apple signing and notarization
+
+Release builds use these GitHub Actions secrets, including organization secrets made available to this repository:
+
+- `APPLE_CERT_BASE64`, `APPLE_CERT_PASSWORD`: Developer ID Application certificate and private key in a base64-encoded PKCS#12 file.
+- `APPLE_TEAM_ID`: expected signing team, checked against the imported certificate and signed app.
+- `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, `APPLE_API_PRIVATE_KEY`: App Store Connect API credentials for notarization.
+
+The release workflow builds without Xcode signing, then signs Sparkle and the app with Developer ID and Hardened Runtime, notarizes the archive, and staples the ticket. Before publishing, it extracts the final ZIP and checks the signature, signing team, notarization ticket, and Gatekeeper acceptance. ZIP creation excludes resource-fork and extended-attribute metadata to avoid AppleDouble (`._*`) files breaking framework validation after extraction.
+
+Local `make build` / `make debug-build` builds do not use these organization secrets or perform Developer ID signing and notarization.
