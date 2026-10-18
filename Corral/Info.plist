@@ -28,5 +28,13 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Corral uses Apple Events to merge Finder windows into tabs automatically.</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/mohnya-org/FinderOne/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string></string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
 </dict>
 </plist>
