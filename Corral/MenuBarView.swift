@@ -66,9 +66,7 @@ struct MenuBarView: View {
                 .padding(.horizontal, 12)
 
             SoftwareUpdateView()
-                .font(.system(size: 12))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
 
             // Footer
             footer
