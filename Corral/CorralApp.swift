@@ -8,6 +8,7 @@ struct CorralApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(appDelegate.appState)
+                .environmentObject(appDelegate.updates)
         } label: {
             Image(nsImage: MenuBarIconFactory.image(for: appDelegate.appState.menuBarIconState))
         }

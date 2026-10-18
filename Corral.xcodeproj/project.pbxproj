@@ -13,6 +13,8 @@
 		A00000000000000000000017 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000007 /* MenuBarView.swift */; };
 		A00000000000000000000018 /* MenuBarIconFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000A /* MenuBarIconFactory.swift */; };
 		A00000000000000000000019 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000B /* Assets.xcassets */; };
+		B00000000000000000000001 = {isa = PBXBuildFile; fileRef = B00000000000000000000002; };
+		B00000000000000000000003 = {isa = PBXBuildFile; productRef = B00000000000000000000004 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +29,7 @@
 		A00000000000000000000009 /* FinderOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FinderOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0000000000000000000000A /* MenuBarIconFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconFactory.swift; sourceTree = "<group>"; };
 		A0000000000000000000000B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -34,6 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B00000000000000000000003 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000004 /* CorralApp.swift */,
+				B00000000000000000000002 /* UpdateController.swift */,
 				A00000000000000000000001 /* AppDelegate.swift */,
 				A00000000000000000000003 /* AccessibilityPermissionManager.swift */,
 				A00000000000000000000002 /* AppleScriptRunner.swift */,
@@ -88,6 +93,7 @@
 			);
 			dependencies = (
 			);
+			packageProductDependencies = (B00000000000000000000004 /* Sparkle */,);
 			name = Corral;
 			productName = FinderOne;
 			productReference = A00000000000000000000009 /* FinderOne.app */;
@@ -119,6 +125,7 @@
 			);
 			mainGroup = A00000000000000000000030;
 			productRefGroup = A00000000000000000000032 /* Products */;
+			packageReferences = (B00000000000000000000005 /* Sparkle */,);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -143,6 +150,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B00000000000000000000001 /* UpdateController.swift in Sources */,
 				A00000000000000000000011 /* AppDelegate.swift in Sources */,
 				A00000000000000000000012 /* AppleScriptRunner.swift in Sources */,
 				A00000000000000000000013 /* AccessibilityPermissionManager.swift in Sources */,
@@ -155,6 +163,21 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+        B00000000000000000000005 /* Sparkle */ = {
+            isa = XCRemoteSwiftPackageReference;
+            repositoryURL = "https://github.com/sparkle-project/Sparkle";
+            requirement = {kind = exactVersion; version = 2.10.0;};
+        };
+/* End XCRemoteSwiftPackageReference section */
+/* Begin XCSwiftPackageProductDependency section */
+        B00000000000000000000004 /* Sparkle */ = {
+            isa = XCSwiftPackageProductDependency;
+            package = B00000000000000000000005 /* Sparkle */;
+            productName = Sparkle;
+        };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A00000000000000000000060 /* Debug */ = {

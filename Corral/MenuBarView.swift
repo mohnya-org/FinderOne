@@ -65,12 +65,17 @@ struct MenuBarView: View {
             Divider()
                 .padding(.horizontal, 12)
 
+            SoftwareUpdateView()
+                .font(.system(size: 12))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
             // Footer
             footer
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
         }
-        .frame(width: 300, height: appState.accessibilityGranted ? 420 : 280)
+        .frame(width: 300, height: appState.accessibilityGranted ? 500 : 360)
         .onAppear {
             appState.refreshPermission(prompt: false)
         }
@@ -257,7 +262,7 @@ private extension MenuBarView {
 
             Spacer()
 
-            Text("v1.0")
+            Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
                 .font(.system(size: 10))
                 .foregroundStyle(.quaternary)
         }

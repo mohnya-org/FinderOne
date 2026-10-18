@@ -10,6 +10,10 @@ on:
         description: "Release version without the v prefix. Omit to use MARKETING_VERSION from the Xcode project."
         required: false
 
+concurrency:
+  group: release-macos-app
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -57,6 +61,18 @@ jobs:
             echo "zip_path=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip"
             echo "checksum_path=$GITHUB_WORKSPACE/dist/FinderOne-$VERSION-macOS.zip.sha256"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Validate update signing configuration
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SPARKLE_PRIVATE_KEY" && -n "$SPARKLE_PUBLIC_ED_KEY" ]] || {
+            echo "Configure SPARKLE_PRIVATE_KEY and SPARKLE_PUBLIC_ED_KEY repository secrets before releasing." >&2
+            exit 1
+          }
+          python3 -c 'import base64, os; assert len(base64.b64decode(os.environ["SPARKLE_PUBLIC_ED_KEY"], validate=True)) == 32, "Invalid Sparkle public key"'
 
       - name: Create release tag if missing
         id: tag
@@ -146,6 +162,7 @@ jobs:
 
       - name: Build app bundle
         env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
           VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
           set -euo pipefail
@@ -163,6 +180,7 @@ jobs:
             MARKETING_VERSION="$VERSION"
           rm -rf dist/FinderOne.app
           cp -R tmp/DerivedData/Build/Products/Release/FinderOne.app dist/FinderOne.app
+          /usr/libexec/PlistBuddy -c "Set :SUPublicEDKey $SPARKLE_PUBLIC_ED_KEY" dist/FinderOne.app/Contents/Info.plist
 
       - name: Verify app architecture
         run: |
@@ -175,8 +193,7 @@ jobs:
       - name: Sign app bundle
         run: |
           set -euo pipefail
-          codesign --force --deep --options runtime --timestamp --sign "$SIGNING_IDENTITY" "dist/FinderOne.app"
-          codesign --verify --deep --strict --verbose=2 "dist/FinderOne.app"
+          bash scripts/sign-app.sh "dist/FinderOne.app"
 
       - name: Prepare App Store Connect API key
         env:
@@ -223,6 +240,14 @@ jobs:
           ditto -c -k --keepParent "dist/FinderOne.app" "$ZIP_PATH"
           shasum -a 256 "$ZIP_PATH" > "$CHECKSUM_PATH"
 
+      - name: Generate signed Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_BIN: tmp/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          ZIP_PATH: ${{ needs.prepare-release.outputs.zip_path }}
+        run: bash scripts/generate-appcast.sh
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -232,9 +257,9 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ZIP_PATH" "$CHECKSUM_PATH" --clobber
+            gh release upload "$TAG" "$ZIP_PATH" "$CHECKSUM_PATH" dist/appcast.xml --clobber
           else
-            gh release create "$TAG" "$ZIP_PATH" "$CHECKSUM_PATH" \
+            gh release create "$TAG" "$ZIP_PATH" "$CHECKSUM_PATH" dist/appcast.xml \
               --title "$TAG" \
               --generate-notes
           fi

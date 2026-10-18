@@ -2,9 +2,11 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    let updates = UpdateController()
     let appState = AppState()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        updates.start()
         appState.start()
     }
 
