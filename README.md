@@ -43,10 +43,11 @@ make run
 
 ## How It Works
 
-1. Monitors Finder window count via the Accessibility API
-2. When a new window is detected, waits ~0.5s for it to finish loading
+1. Monitors standard Finder windows via the Accessibility API
+2. When multiple windows exist, waits ~0.5s for loading before merging
 3. Runs Finder's built-in `Merge All Windows` command via AppleScript
-4. If fewer than 2 windows exist, does nothing
+4. Waits for the merge to finish and restores the tab that was frontmost immediately before merging
+5. Retries after a short cooldown if multiple windows remain, including after startup or a temporarily unavailable menu command
 
 ## Building
 

@@ -70,16 +70,61 @@ struct AppleScriptRunner {
             end tell
         end finderFrontWindowDocumentToken
 
+        on standardFinderWindowCount()
+            tell application "System Events"
+                tell process "Finder"
+                    return count of (windows whose subrole is "AXStandardWindow")
+                end tell
+            end tell
+        end standardFinderWindowCount
+
+        on restorePreferredTab(preferredTargetPath, preferredDocumentToken, preferredTabTitle)
+            tell application "System Events"
+                tell process "Finder"
+                    try
+                        set tabButtons to radio buttons of tab group 1 of front window
+                    on error
+                        return false
+                    end try
+                    repeat with candidateButton in tabButtons
+                        try
+                            click candidateButton
+                            -- Finder's scripting target can lag behind the selected AX tab.
+                            repeat 5 times
+                                delay 0.05
+                                if preferredTargetPath is not missing value then
+                                    if my finderFrontWindowTargetPath() is preferredTargetPath then return true
+                                end if
+                                if preferredDocumentToken is not missing value then
+                                    if my finderFrontWindowDocumentToken() is preferredDocumentToken then return true
+                                end if
+                            end repeat
+                            if preferredTargetPath is missing value and preferredDocumentToken is missing value then
+                                if preferredTabTitle is not missing value then
+                                    if title of candidateButton is preferredTabTitle then return true
+                                end if
+                            end if
+                        end try
+                    end repeat
+                    return false
+                end tell
+            end tell
+        end restorePreferredTab
+
         tell application "Finder"
             if not running then
                 return "skip|Finder is not running."
             end if
 
-            set finderWindowCount to count of Finder windows
+            set finderWindowCount to my standardFinderWindowCount()
             if finderWindowCount < 2 then
                 return "skip|Finder has fewer than two windows."
             end if
 
+            -- Capture after the loading debounce, immediately before merging.
+            if preferredTabTitle is missing value then set preferredTabTitle to my finderFrontWindowTitle()
+            if preferredTargetPath is missing value then set preferredTargetPath to my finderFrontWindowTargetPath()
+            if preferredDocumentToken is missing value then set preferredDocumentToken to my finderFrontWindowDocumentToken()
             activate
         end tell
 
@@ -93,6 +138,7 @@ struct AppleScriptRunner {
                             tell menu 1
                                 repeat with mergeMenuName in mergeMenuNames
                                     if exists menu item (contents of mergeMenuName) then
+                                        if not enabled of menu item (contents of mergeMenuName) then exit repeat
                                         click menu item (contents of mergeMenuName)
                                         set didMerge to true
                                         exit repeat
@@ -113,69 +159,28 @@ struct AppleScriptRunner {
             end tell
         end tell
 
-        delay 0.2
+        -- Wait for the actual window merge, rather than assuming 200 ms is enough.
+        repeat 30 times
+            if my standardFinderWindowCount() < 2 then exit repeat
+            delay 0.1
+        end repeat
+        set remainingWindowCount to my standardFinderWindowCount()
+        if remainingWindowCount > 1 then
+            return "skip|Finder still has multiple windows; will retry."
+        end if
 
-        tell application "System Events"
-            tell process "Finder"
-                try
-                    tell front window
-                        if exists tab group 1 then
-                            set tabButtons to radio buttons of tab group 1
-
-                            if preferredTargetPath is not missing value and preferredTargetPath is not "" then
-                                repeat with candidateButton in tabButtons
-                                    try
-                                        click candidateButton
-                                        delay 0.05
-                                        if finderFrontWindowTargetPath() is preferredTargetPath then
-                                            error number -128
-                                        end if
-                                    end try
-                                end repeat
-                            end if
-
-                            if preferredDocumentToken is not missing value and preferredDocumentToken is not "" then
-                                repeat with candidateButton in tabButtons
-                                    try
-                                        click candidateButton
-                                        delay 0.05
-                                        if finderFrontWindowDocumentToken() is preferredDocumentToken then
-                                            error number -128
-                                        end if
-                                    end try
-                                end repeat
-                            end if
-
-                            if preferredTabTitle is not missing value and preferredTabTitle is not "" then
-                                repeat with candidateButton in tabButtons
-                                    try
-                                        if title of candidateButton is preferredTabTitle then
-                                            click candidateButton
-                                            error number -128
-                                        end if
-                                    end try
-                                end repeat
-                            end if
-
-                            if (count of tabButtons) > 0 then
-                                -- Final fallback for windows that expose neither target nor AXDocument.
-                                click item -1 of tabButtons
-                            end if
-                        end if
-                    end tell
-                on error errMsg number errNum
-                    if errNum is not -128 then
-                        -- Ignore focus restoration failures and keep the merge successful.
-                    end if
-                end try
-            end tell
-        end tell
-
-        delay 0.1
-
-        tell application "Finder"
-            return "merged|" & (count of Finder windows)
-        end tell
+        if remainingWindowCount is 1 then
+            -- Tab controls may appear after the window animation completes.
+            repeat 10 times
+                tell application "System Events" to tell process "Finder"
+                    set tabsReady to exists tab group 1 of front window
+                end tell
+                if tabsReady then exit repeat
+                delay 0.1
+            end repeat
+            my restorePreferredTab(preferredTargetPath, preferredDocumentToken, preferredTabTitle)
+        end if
+        return "merged|" & remainingWindowCount
         """
 
         var errorInfo: NSDictionary?

@@ -29,6 +29,8 @@ final class AppState: ObservableObject {
                 finderWindowMonitor.start()
             } else {
                 log("Automatic merge paused.")
+                scheduledMerge?.cancel()
+                scheduledMerge = nil
                 finderWindowMonitor.stop()
             }
         }
@@ -55,7 +57,7 @@ final class AppState: ObservableObject {
     let loginItemManager = LoginItemManager()
     lazy var finderWindowMonitor = FinderWindowMonitor(
         permissionManager: permissionManager,
-        onWindowIncreaseDetected: { [weak self] in
+        onMultipleWindowsDetected: { [weak self] in
             self?.scheduleAutomaticMerge()
         },
         onWindowSnapshot: { [weak self] count in
@@ -79,6 +81,7 @@ final class AppState: ObservableObject {
     )
 
     private var scheduledMerge: DispatchWorkItem?
+    private var nextAutomaticMergeDate = Date.distantPast
     private var permissionFollowUpTask: Task<Void, Never>?
 
     func start() {
@@ -97,6 +100,7 @@ final class AppState: ObservableObject {
 
     func stop() {
         scheduledMerge?.cancel()
+        scheduledMerge = nil
         permissionFollowUpTask?.cancel()
         finderWindowMonitor.stop()
     }
@@ -125,6 +129,7 @@ final class AppState: ObservableObject {
 
     func mergeNow() {
         scheduledMerge?.cancel()
+        scheduledMerge = nil
         Task { await performMerge(trigger: "manual") }
     }
 
@@ -142,20 +147,15 @@ final class AppState: ObservableObject {
     }
 
     private func scheduleAutomaticMerge() {
-        guard isEnabled else { return }
-        scheduledMerge?.cancel()
-        let preferredTabTitle = appleScriptRunner.frontFinderWindowTitle()
-        let preferredTargetPath = appleScriptRunner.frontFinderWindowTargetPath()
-        let preferredDocumentToken = appleScriptRunner.frontFinderWindowDocumentToken()
+        guard isEnabled, !isMergingNow, scheduledMerge == nil,
+              Date() >= nextAutomaticMergeDate else { return }
 
         let workItem = DispatchWorkItem { [weak self] in
-            Task {
-                await self?.performMerge(
-                    trigger: "automatic",
-                    preferredTabTitle: preferredTabTitle,
-                    preferredTargetPath: preferredTargetPath,
-                    preferredDocumentToken: preferredDocumentToken
-                )
+            Task { @MainActor in
+                guard let self else { return }
+                self.scheduledMerge = nil
+                guard self.isEnabled else { return }
+                await self.performMerge(trigger: "automatic")
             }
         }
         scheduledMerge = workItem
@@ -193,7 +193,10 @@ final class AppState: ObservableObject {
         }
 
         isMergingNow = true
-        defer { isMergingNow = false }
+        defer {
+            isMergingNow = false
+            nextAutomaticMergeDate = Date().addingTimeInterval(2)
+        }
 
         do {
             let result = try appleScriptRunner.mergeFinderWindows(
