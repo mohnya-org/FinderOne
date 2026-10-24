@@ -4,24 +4,23 @@ import ApplicationServices
 @MainActor
 final class FinderWindowMonitor {
     private let permissionManager: AccessibilityPermissionManager
-    private let onWindowIncreaseDetected: () -> Void
+    private let onMultipleWindowsDetected: () -> Void
     private let onWindowSnapshot: (Int) -> Void
     private let onPermissionChanged: (Bool) -> Void
     private let onLog: (String) -> Void
 
     private var timer: Timer?
     private var lastKnownWindowCount = 0
-    private var hasBaseline = false
 
     init(
         permissionManager: AccessibilityPermissionManager,
-        onWindowIncreaseDetected: @escaping () -> Void,
+        onMultipleWindowsDetected: @escaping () -> Void,
         onWindowSnapshot: @escaping (Int) -> Void,
         onPermissionChanged: @escaping (Bool) -> Void,
         onLog: @escaping (String) -> Void
     ) {
         self.permissionManager = permissionManager
-        self.onWindowIncreaseDetected = onWindowIncreaseDetected
+        self.onMultipleWindowsDetected = onMultipleWindowsDetected
         self.onWindowSnapshot = onWindowSnapshot
         self.onPermissionChanged = onPermissionChanged
         self.onLog = onLog
@@ -43,7 +42,6 @@ final class FinderWindowMonitor {
         timer?.invalidate()
         timer = nil
         lastKnownWindowCount = 0
-        hasBaseline = false
         onWindowSnapshot(0)
     }
 
@@ -72,12 +70,13 @@ final class FinderWindowMonitor {
         let currentWindowCount = windowCount(for: finder.processIdentifier)
         onWindowSnapshot(currentWindowCount)
 
-        if hasBaseline, currentWindowCount > lastKnownWindowCount {
-            onLog("Detected a new Finder window.")
-            onWindowIncreaseDetected()
+        if currentWindowCount > 1 {
+            if currentWindowCount > lastKnownWindowCount {
+                onLog("Detected multiple Finder windows.")
+            }
+            // Retry even when the previous merge failed without changing the count.
+            onMultipleWindowsDetected()
         }
-
-        hasBaseline = true
         lastKnownWindowCount = currentWindowCount
     }
 
@@ -90,6 +89,12 @@ final class FinderWindowMonitor {
             return 0
         }
 
-        return windows.count
+        return windows.filter { window in
+            var subrole: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole) == .success else {
+                return false
+            }
+            return subrole as? String == kAXStandardWindowSubrole
+        }.count
     }
 }
