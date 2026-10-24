@@ -43,6 +43,7 @@ jobs:
           python3 -B scripts/test-release-version.py
           python3 -B scripts/test-publish-release.py
           python3 -B scripts/test-macos-dmg.py
+          python3 -B scripts/test-keychain-lock.py
 
       - name: Resolve release metadata
         id: metadata
@@ -132,7 +133,7 @@ jobs:
           printf '%s' "$APPLE_CERT_BASE64" > "$CERT_BASE64_PATH"
           base64 -D -i "$CERT_BASE64_PATH" -o "$CERT_PATH"
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          python3 scripts/keychain_lock.py create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security import "$CERT_PATH" \
@@ -283,7 +284,7 @@ jobs:
           set +e
 
           if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
-            security delete-keychain "$KEYCHAIN_PATH" || true
+            python3 scripts/keychain_lock.py delete-keychain "$KEYCHAIN_PATH" || true
           fi
 
           rm -f "${CERT_PATH:-}" "${CERT_BASE64_PATH:-}" "${APPLE_API_KEY_PATH:-}"
