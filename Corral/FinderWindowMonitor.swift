@@ -11,6 +11,7 @@ final class FinderWindowMonitor {
 
     private var timer: Timer?
     private var lastKnownWindowCount = 0
+    private var lastDetectionDiagnostic: String?
 
     init(
         permissionManager: AccessibilityPermissionManager,
@@ -42,6 +43,7 @@ final class FinderWindowMonitor {
         timer?.invalidate()
         timer = nil
         lastKnownWindowCount = 0
+        lastDetectionDiagnostic = nil
         onWindowSnapshot(0)
     }
 
@@ -72,7 +74,7 @@ final class FinderWindowMonitor {
 
         if currentWindowCount > 1 {
             if currentWindowCount > lastKnownWindowCount {
-                onLog("Detected \(currentWindowCount) standard Finder windows via AX.")
+                onLog("Detected \(currentWindowCount) Finder windows for automatic merge.")
             }
             // Retry even when the previous merge failed without changing the count.
             onMultipleWindowsDetected()
@@ -85,16 +87,38 @@ final class FinderWindowMonitor {
         var value: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &value)
 
-        guard result == .success, let windows = value as? [AXUIElement] else {
-            return 0
-        }
-
-        return windows.filter { window in
+        let windows = result == .success ? (value as? [AXUIElement] ?? []) : []
+        let standardCount = windows.filter { window in
             var subrole: CFTypeRef?
             guard AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole) == .success else {
                 return false
             }
             return subrole as? String == kAXStandardWindowSubrole
+        }.count
+
+        // AX can omit newly created windows or expose a different subrole.
+        // Use visible WindowServer windows as a second signal; the enabled Finder
+        // merge menu remains the authority on whether these can actually merge.
+        let visibleWindows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
+        ) as? [[String: Any]] ?? []
+        let visibleCount = Self.visibleFinderWindowCount(visibleWindows, pid: pid)
+        let diagnostic = "Finder detection: AX standard=\(standardCount), AX total=\(windows.count), visible=\(visibleCount), AX error=\(result.rawValue)."
+        if diagnostic != lastDetectionDiagnostic {
+            onLog(diagnostic)
+            lastDetectionDiagnostic = diagnostic
+        }
+        return max(standardCount, visibleCount)
+    }
+
+    nonisolated static func visibleFinderWindowCount(_ windows: [[String: Any]], pid: pid_t) -> Int {
+        windows.filter { window in
+            guard (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid,
+                  (window[kCGWindowLayer as String] as? NSNumber)?.intValue == 0,
+                  let bounds = window[kCGWindowBounds as String] as? [String: Any],
+                  let width = bounds["Width"] as? NSNumber,
+                  let height = bounds["Height"] as? NSNumber else { return false }
+            return width.doubleValue > 0 && height.doubleValue > 0
         }.count
     }
 }
