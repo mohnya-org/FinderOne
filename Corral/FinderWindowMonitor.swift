@@ -72,7 +72,7 @@ final class FinderWindowMonitor {
 
         if currentWindowCount > 1 {
             if currentWindowCount > lastKnownWindowCount {
-                onLog("Detected multiple Finder windows.")
+                onLog("Detected \(currentWindowCount) standard Finder windows via AX.")
             }
             // Retry even when the previous merge failed without changing the count.
             onMultipleWindowsDetected()
