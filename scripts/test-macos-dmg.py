@@ -7,6 +7,7 @@ import plistlib
 import shutil
 import subprocess
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +22,15 @@ ENV = dict(APPLE_CERT_BASE64=base64.b64encode(b'fixture').decode(), APPLE_CERT_P
 
 
 class DmgTests(unittest.TestCase):
+    def test_dmg_layout_does_not_modify_signed_app_metadata(self):
+        from unittest.mock import Mock
+        build = Mock()
+        with patch.dict('sys.modules', {'dmgbuild': types.SimpleNamespace(build_dmg=build)}):
+            dmg.build_image(Path('/tmp/Test.app'), Path('/tmp/Test.dmg'))
+        settings = build.call_args.kwargs['settings']
+        self.assertEqual(settings['files'], ['/tmp/Test.app'])
+        self.assertEqual(settings['hide_extensions'], [])
+
     def test_required_secrets(self):
         with self.assertRaisesRegex(dmg.DistributionError, 'Missing secrets'):
             dmg.preflight({})

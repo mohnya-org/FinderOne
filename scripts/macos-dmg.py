@@ -125,7 +125,8 @@ def build_image(app, dmg):
         'window_rect': ((window['x'], window['y']), (window['width'], window['height'])),
         'icon_locations': {app.name: tuple(layout['app']), 'Applications': tuple(layout['applications'])},
         'icon_size': layout['iconSize'], 'text_size': layout['iconTextSize'],
-        'hide_extensions': [app.name], 'default_view': 'icon-view',
+        # SetFile -a E adds FinderInfo to the signed bundle and breaks strict verification.
+        'hide_extensions': [], 'default_view': 'icon-view',
         'show_toolbar': False, 'show_sidebar': False, 'show_status_bar': False,
         'show_pathbar': False, 'show_tab_view': False,
         'include_icon_view_settings': True, 'include_list_view_settings': False,
