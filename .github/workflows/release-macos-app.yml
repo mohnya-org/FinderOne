@@ -253,14 +253,12 @@ jobs:
           SPARKLE_BIN: tmp/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
         run: bash scripts/generate-appcast.sh
 
-      - name: Set up Python for DMG layout
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.13'
-
       - name: Install pinned DMG layout tools
         run: |
           set -euo pipefail
+          # Use the runner's Python; setup-python's macOS binaries require
+          # /Users/runner/hostedtoolcache, which this self-hosted user cannot write.
+          python3 -c 'import sys; sys.exit("DMG tooling requires Python 3.10+ on the runner PATH") if sys.version_info < (3, 10) else print(sys.version)'
           tools_dir="$(mktemp -d "$RUNNER_TEMP/dmg-tools.XXXXXX")"
           echo "DMG_TOOLS_DIR=$tools_dir" >> "$GITHUB_ENV"
           python3 -m venv "$tools_dir"

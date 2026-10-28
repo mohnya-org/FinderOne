@@ -118,3 +118,7 @@ See [Apple's Developer ID certificate guide](https://developer.apple.com/help/ac
 ### Finder automation entitlement
 
 The host app must be signed with `com.apple.security.automation.apple-events` from `Corral/FinderOne.entitlements`. Hardened Runtime otherwise blocks the Apple Events used to control Finder and System Events, even when Accessibility permission is granted. `NSAppleEventsUsageDescription` alone does not grant this capability. The signing script and final archive checks verify the embedded entitlement. Sparkle helpers do not receive this host-only entitlement. Users must also allow the Automation permission when macOS requests it.
+
+### Self-hosted runner Python
+
+The macOS runner must provide Python 3.10 or newer with `venv` and `pip` on its service PATH. DMG layout tools are installed from the hash-pinned `scripts/dmg-requirements.txt` into a per-run virtual environment under `RUNNER_TEMP`, which is removed during cleanup. The workflow uses the existing Python installation and does not require write access to `/Users/runner/hostedtoolcache`.
