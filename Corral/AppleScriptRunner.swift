@@ -191,7 +191,13 @@ struct AppleScriptRunner {
         let resultDescriptor = appleScript.executeAndReturnError(&errorInfo)
         if let errorInfo {
             let message = errorInfo[NSAppleScript.errorMessage] as? String ?? "Unknown AppleScript error."
-            throw ScriptError.executionFailure(message)
+            let code = (errorInfo[NSAppleScript.errorNumber] as? NSNumber)?.intValue
+            if code == -1743 {
+                throw ScriptError.executionFailure(
+                    "Apple Events access was denied (-1743). Allow FinderOne to control Finder and System Events in System Settings > Privacy & Security > Automation. The app must also be signed with the Apple Events entitlement."
+                )
+            }
+            throw ScriptError.executionFailure(code.map { "\(message) (\($0))" } ?? message)
         }
 
         guard let output = resultDescriptor.stringValue else {
