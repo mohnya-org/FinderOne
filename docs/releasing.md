@@ -114,3 +114,7 @@ A future PKG workflow must sign with that Installer identity, notarize and stapl
 and verify it with `pkgutil --check-signature`, `stapler validate`, and Gatekeeper's install
 assessment before publication. Test installation and subsequent Sparkle updates on a clean Mac.
 See [Apple's Developer ID certificate guide](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/).
+
+### Finder automation entitlement
+
+The host app must be signed with `com.apple.security.automation.apple-events` from `Corral/FinderOne.entitlements`. Hardened Runtime otherwise blocks the Apple Events used to control Finder and System Events, even when Accessibility permission is granted. `NSAppleEventsUsageDescription` alone does not grant this capability. The signing script and final archive checks verify the embedded entitlement. Sparkle helpers do not receive this host-only entitlement. Users must also allow the Automation permission when macOS requests it.

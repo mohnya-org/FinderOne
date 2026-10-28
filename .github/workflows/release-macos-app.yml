@@ -44,6 +44,7 @@ jobs:
           python3 -B scripts/test-publish-release.py
           python3 -B scripts/test-macos-dmg.py
           python3 -B scripts/test-keychain-lock.py
+          python3 -B scripts/test-automation-entitlement.py
 
       - name: Resolve release metadata
         id: metadata
@@ -241,6 +242,7 @@ jobs:
           ditto -x -k "$ZIP_PATH" "$VERIFY_DIR"
           APP="$VERIFY_DIR/FinderOne.app"
           codesign --verify --deep --strict --verbose=2 "$APP"
+          bash scripts/verify-automation-entitlement.sh "$APP"
           codesign --verify -R="anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\"" "$APP"
           xcrun stapler validate "$APP"
           spctl --assess --type execute --verbose=2 "$APP"
