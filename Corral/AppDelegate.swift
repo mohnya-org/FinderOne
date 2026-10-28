@@ -158,6 +158,7 @@ final class AppState: ObservableObject {
                 await self.performMerge(trigger: "automatic")
             }
         }
+        log("Automatic merge scheduled.")
         scheduledMerge = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
