@@ -73,7 +73,15 @@ struct AppleScriptRunner {
         on standardFinderWindowCount()
             tell application "System Events"
                 tell process "Finder"
-                    return count of (windows whose subrole is "AXStandardWindow")
+                    -- Read the same AX attribute used by the Swift monitor explicitly.
+                    -- Do not rely on System Events' whose-filter evaluation.
+                    set standardCount to 0
+                    repeat with candidateWindow in windows
+                        if value of attribute "AXSubrole" of candidateWindow is "AXStandardWindow" then
+                            set standardCount to standardCount + 1
+                        end if
+                    end repeat
+                    return standardCount
                 end tell
             end tell
         end standardFinderWindowCount
@@ -116,11 +124,6 @@ struct AppleScriptRunner {
                 return "skip|Finder is not running."
             end if
 
-            set finderWindowCount to my standardFinderWindowCount()
-            if finderWindowCount < 2 then
-                return "skip|Finder has fewer than two windows."
-            end if
-
             -- Capture after the loading debounce, immediately before merging.
             if preferredTabTitle is missing value then set preferredTabTitle to my finderFrontWindowTitle()
             if preferredTargetPath is missing value then set preferredTargetPath to my finderFrontWindowTargetPath()
@@ -128,8 +131,13 @@ struct AppleScriptRunner {
             activate
         end tell
 
+        -- The monitor already detected multiple windows. Let Finder's enabled menu
+        -- command decide whether merging is possible, even if AX counts disagree.
+        delay 0.1
+        set finderWindowCount to my standardFinderWindowCount()
         tell application "System Events"
             tell process "Finder"
+                set totalWindowCount to count of windows
                 set didMerge to false
 
                 repeat with windowMenuName in windowMenuNames
@@ -154,19 +162,19 @@ struct AppleScriptRunner {
                 end repeat
 
                 if not didMerge then
-                    return "skip|Finder's Merge All Windows menu item was not available."
+                    return "skip|Merge All Windows unavailable or disabled (AX standard=" & finderWindowCount & ", total=" & totalWindowCount & ")."
                 end if
             end tell
         end tell
 
         -- Wait for the actual window merge, rather than assuming 200 ms is enough.
         repeat 30 times
-            if my standardFinderWindowCount() < 2 then exit repeat
+            if my standardFinderWindowCount() is 1 then exit repeat
             delay 0.1
         end repeat
         set remainingWindowCount to my standardFinderWindowCount()
-        if remainingWindowCount > 1 then
-            return "skip|Finder still has multiple windows; will retry."
+        if remainingWindowCount is not 1 then
+            return "skip|Merge was requested but completion is unconfirmed (AX standard=" & remainingWindowCount & "); will retry."
         end if
 
         if remainingWindowCount is 1 then
