@@ -220,6 +220,17 @@ private extension MenuBarView {
                 Text(appState.statusText)
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(appState.logs.joined(separator: "\n"), forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.plain)
+                .disabled(appState.logs.isEmpty)
+                .help("Copy all activity logs")
+                .accessibilityLabel("Copy all activity logs")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 6)
@@ -236,6 +247,8 @@ private extension MenuBarView {
                         Text(entry)
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .help(entry)
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .frame(maxWidth: .infinity, alignment: .leading)
