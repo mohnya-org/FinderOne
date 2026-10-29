@@ -148,6 +148,7 @@ final class AppState: ObservableObject {
 
     private func scheduleAutomaticMerge() {
         guard isEnabled, !isMergingNow, scheduledMerge == nil,
+              NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
               Date() >= nextAutomaticMergeDate else { return }
 
         let workItem = DispatchWorkItem { [weak self] in
@@ -188,6 +189,10 @@ final class AppState: ObservableObject {
         preferredDocumentToken: String? = nil
     ) async {
         guard !isMergingNow else { return }
+        if trigger == "automatic",
+           NSWorkspace.shared.frontmostApplication?.bundleIdentifier != "com.apple.finder" {
+            return
+        }
         guard accessibilityGranted else {
             log("Skipping merge because Accessibility permission is not granted.")
             return
@@ -201,6 +206,7 @@ final class AppState: ObservableObject {
 
         do {
             let result = try appleScriptRunner.mergeFinderWindows(
+                allowActivation: trigger == "manual",
                 preferredTabTitle: preferredTabTitle,
                 preferredTargetPath: preferredTargetPath,
                 preferredDocumentToken: preferredDocumentToken

@@ -24,6 +24,7 @@ struct AppleScriptRunner {
     }
 
     func mergeFinderWindows(
+        allowActivation: Bool = false,
         preferredTabTitle: String? = nil,
         preferredTargetPath: String? = nil,
         preferredDocumentToken: String? = nil
@@ -96,6 +97,7 @@ struct AppleScriptRunner {
                     end try
                     repeat with candidateButton in tabButtons
                         try
+                            if not frontmost then return false
                             click candidateButton
                             -- Finder's scripting target can lag behind the selected AX tab.
                             repeat 5 times
@@ -128,7 +130,6 @@ struct AppleScriptRunner {
             if preferredTabTitle is missing value then set preferredTabTitle to my finderFrontWindowTitle()
             if preferredTargetPath is missing value then set preferredTargetPath to my finderFrontWindowTargetPath()
             if preferredDocumentToken is missing value then set preferredDocumentToken to my finderFrontWindowDocumentToken()
-            activate
         end tell
 
         -- The monitor already detected multiple windows. Let Finder's enabled menu
@@ -137,6 +138,10 @@ struct AppleScriptRunner {
         set finderWindowCount to my standardFinderWindowCount()
         tell application "System Events"
             tell process "Finder"
+                -- Automatic retries must never steal focus from another app.
+                if not frontmost and not \(allowActivation ? "true" : "false") then
+                    return "skip|Finder is not frontmost."
+                end if
                 set totalWindowCount to count of windows
                 set didMerge to false
 
@@ -147,6 +152,11 @@ struct AppleScriptRunner {
                                 repeat with mergeMenuName in mergeMenuNames
                                     if exists menu item (contents of mergeMenuName) then
                                         if not enabled of menu item (contents of mergeMenuName) then exit repeat
+                                        if \(allowActivation ? "true" : "false") then
+                                            tell application "Finder" to activate
+                                        else
+                                            if not frontmost of process "Finder" then return "skip|Finder is not frontmost."
+                                        end if
                                         click menu item (contents of mergeMenuName)
                                         set didMerge to true
                                         exit repeat

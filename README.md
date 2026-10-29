@@ -51,10 +51,12 @@ If your installed version predates automatic update support, install a current r
 ## How It Works
 
 1. Monitors standard Finder windows via the Accessibility API
-2. When multiple windows exist, waits ~0.5s for loading before merging
+2. When multiple windows exist and Finder is frontmost, waits ~0.5s for loading before merging; background merges wait until you return to Finder
 3. Runs Finder's built-in `Merge All Windows` command via AppleScript
 4. Waits for the merge to finish and restores the tab that was frontmost immediately before merging
 5. Retries after a short cooldown if multiple windows remain, including after startup or a temporarily unavailable menu command
+
+Automatic merging never activates Finder. The Activity copy button copies all retained log entries in full, including entries hidden or truncated in the panel.
 
 ## Building
 
